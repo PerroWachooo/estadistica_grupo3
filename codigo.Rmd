@@ -7,10 +7,11 @@ date: "`r Sys.Date()`"
 ```{r}
 # Importamos las librerías
 library(dplyr)
+library(ggplot2)
+library(EnvStats)
 library(ggpubr)
-library(ez)
-library(emmeans)
-library(nlme)
+library(tidyverse)
+library(car)
 ```
 
 
@@ -18,8 +19,81 @@ library(nlme)
 # Lectura de archivo
 # Se abre el CSV, cambiar la ruta según corresponda
 nombre_archivo <- "EP09 Datos.csv"
-carpeta_direccion <- "C:\\Users\\BastiánBritoGarrido\\Desktop\\Estadistica"
-ruta <- file.path(carpeta_direccion, nombre_archivo)
-datos <- read.csv(ruta, stringsAsFactors = TRUE)
+datos <- read.csv2(nombre_archivo)
+
 ```
+# Preguntas
+
+### 1. Definir la semilla a utilizar, que corresponde a los últimos cuatro dígitos del RUN (sin considerar el dígito verificador) del integrante de menor edad del equipo.
+
+### 2. Seleccionar una muestra aleatoria de 100 mujeres (si la semilla es un número par) o 100 hombres (si la semilla es impar), y separar 70 casos para trabajar en la construcción de modelos y 30 para su evaluación en datos no vistos.
+
+### 3. Seleccionar de forma aleatoria ocho posibles variables predictoras.
+
+### 4. Seleccionar, de las otras variables, una que el equipo considere que podría ser útil para predecir la variable Peso (sin considerar la estatura), justificando bien esta selección.
+
+### 5. Usando el entorno R y paquetes estándares, construir un modelo de regresión lineal simple con el predictor seleccionado en el paso anterior.
+
+### 6. Usando herramientas estándares1 para la exploración de modelos del entorno R, buscar entre dos y cinco predictores de entre las variables seleccionadas al azar en el punto 3, para agregar al modelo de regresión lineal simple obtenido en el paso 5.
+
+### 7. Evaluar la bondad de ajuste (incluyendo el análisis de casos atípicos y casos influyentes) y la generalidad (condiciones para RLM) de los modelos y “arreglarlos” en caso de que presenten algún problema.
+
+### 8.Evaluar el poder predictivo del modelo con los datos no utilizados para construirlo.
+
+```{r}
+# Definir la semilla
+set.seed(8928)
+
+# Seleccionar una muestra aleatoria de 100 mujeres (si la semilla es un número par) o 100 hombres (si la semilla es impar)
+# Separar 70 casos para trabajar en la construcción de modelos y 30 para su evaluación en datos no vistos.
+datos_mujeres <- datos %>%
+  filter(Gender == 0) %>%
+  sample_n(100)
+
+
+# Dividir los datos en conjuntos de entrenamiento y prueba
+indices_entrenamiento = sample(1:nrow(datos_mujeres), 0.7 * nrow(datos_mujeres))
+datos_entrenamiento = datos_mujeres[indices_entrenamiento, ]
+datos_prueba = datos_mujeres[-indices_entrenamiento, ]
+```
+
+```{r}
+# Definir la semilla
+set.seed(8928)
+# Seleccionar de forma aleatoria ocho posibles variables predictoras. Descartando altura y la variable peso
+variables_predictoras <- colnames(datos_mujeres)[!colnames(datos_mujeres) %in% c("Height", "Weight")]
+variables_predictoras <- sample(variables_predictoras, 8)
+variables_predictoras
+
+
+#Vemos las correlaciones de las variables
+correlaciones <- cor(datos_mujeres)
+print(correlaciones)
+
+```
+Shoulder.Girth	Grosor de los hombros sobre los músculos deltoides, sera la variable predictora escogida por el equipo, debido a que, creemos que puede predecir de manera correcta el peso de las personas, ya que al tener más porcetaje de grasa(que aumenta el peso) en el cuerpo, el grosor de los hombros aumenta, espcecialmente en mujeres. En donde no existe tanta musculatura. Además la correlación con la variable peso es bastante alta, con una correlación del 0.8 aproximadamente.
+
+```{r}
+# Construir un modelo de regresión lineal simple con el predictor seleccionado en el paso anterior.
+modelo_simple <- lm(Weight ~ Shoulder.Girth, data = datos_entrenamiento) #Modelo Nulo
+summary(modelo_simple)
+```
+Como se puede ver, el modelo es bastante bueno, prediciendo la variable peso con estimado del 1.19 lo que nos dice, por cada cm de Grosor de Hombro se aumenta un 1.19kg, un error del 0.1, un t value del 11.42 y un p value de 2e-16, lo que nos dice que es muy significativo.
+
+
+Ahora, para encontrar los predictores que se pueden agregar al modelo, se puede hacer un análisis de regresión múltiple, para ver que variables son las que más influyen en el peso de las personas. Usaremos el metodo de selección hacia adelante que es una buena elección cuando se busca construir un modelo predictivo, especialmente cuando hay muchas variables iniciales y se sospecha que solo unas pocas son relevantes 
+
+```{r}
+# Usando herramientas estándares para la exploración de modelos del entorno R, buscar entre dos y cinco predictores de entre las variables seleccionadas al azar en el punto 3, para agregar al modelo de regresión lineal simple obtenido en el paso 5.
+
+#Ajustamos el modelo completo con "Elbows.diameter" "Bitrochanteric.diameter" "Chest.diameter" "Waist.Girth" "Bicep.Girth" "Chest.depth" "Calf.Maximum.Girth" "Navel.Girth"
+modelo_completo <- lm(Weight ~ Shoulder.Girth + Elbows.diameter + Bitrochanteric.diameter + Chest.diameter + Waist.Girth + Bicep.Girth + Chest.depth + Calf.Maximum.Girth + Navel.Girth, data = datos_entrenamiento)
+summary(modelo_completo)
+```
+
+
+
+
+
+
 
