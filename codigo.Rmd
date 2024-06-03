@@ -1,0 +1,25 @@
+---
+title: "EP14"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r}
+# Importamos las librerías
+library(dplyr)
+library(ggpubr)
+library(ez)
+library(emmeans)
+library(nlme)
+```
+
+
+```{r}
+# Lectura de archivo
+# Se abre el CSV, cambiar la ruta según corresponda
+nombre_archivo <- "EP09 Datos.csv"
+carpeta_direccion <- "C:\\Users\\BastiánBritoGarrido\\Desktop\\Estadistica"
+ruta <- file.path(carpeta_direccion, nombre_archivo)
+datos <- read.csv(ruta, stringsAsFactors = TRUE)
+```
+
