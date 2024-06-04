@@ -91,9 +91,92 @@ modelo_completo <- lm(Weight ~ Shoulder.Girth + Elbows.diameter + Bitrochanteric
 summary(modelo_completo)
 ```
 
+```{r}
+modelo_termina <- add1(modelo_simple, scope = modelo_completo)
+modelo_termina
+```
+revisamos los AIC y vemos cual es el menor, solo agregar el menor con update, repetir un par de veces.
+
+condiciones para generalizar el modelo (cambiar nombres eh interpretar datos solamente)
+
+
+```{r}
+
+# 1. Las variables predictoras deben ser cuantitativas o dicotómicas
+
+# 2. La variable de respuesta debe ser cuantitativa y continua
+
+# 3. Los predictores deben tener algún grado de variabilidad
+cat("Calculo de varianza de los predictores \n\n")
+sapply(datos_entrenamiento[, c("Elbows.diameter", "Bitrochanteric.diameter", "Chest.diameter", "Waist.Girth","Bicep.Girth","Chest.depth", "Calf.Maximum.Girth","Navel.Girth" )], var)
+cat("\n")
+cat("\n")
+
+# Como todas las varianzas de los predictores son distintas a cero podemos continuar.
+
+# 4. No debe existir multicolinealidad
+cat("Calculo de la multicolinealidad \n\n")
+# cambiar model_termina por el modelo final(no se puede usar el modelo obtenido por add1, hay que hacerlo a mano)
+vif(modelo_termina)
+cat("\n")
+cat("\n")
+
+# Como todos los VIF son menores a 5 y cercanos a 1 podemos afirmar que no existe multicolinealidad.
+
+# 5. Los residuos deben ser homocedásticos
+cat("Comprobación de la homocedásticidad de los residuos \n")
+plot(modelo_termina, which = 1)
+# cambiar model_termina por el modelo final(no se puede usar el modelo obtenido por add1, hay que hacerlo a mano)
+bptest(modelo_termina)
+cat("\n")
+
+# Como el p valor entregado por la prueba de Breusch-Pagan es menor a el nivel de significancia alpha (0.05), podemos afirmar que los residuos son homocedásticos.
+
+# 6. Los residuos deben seguir una distribución cercana a la normal centrada en cero
+cat("Comprobación de la normalidad \n")
+hist(residuals(modelo_termina), breaks = 10, main = "Histograma de Residuos", xlab = "Residuos")
+shapiro.test(residuals(modelo_termina))
+
+# Como el p valor entregado por la prueba de Shapiro es menor a el nivel de significancia alpha (0.05), podemos afirmar que los residuos siguen una distribución normal.
+
+# 7. Los valores de la variable de respuesta son independientes entre sí
+# Asumimos que la recolección de datos fue independiente
+
+# 8. Cada predictor se relaciona linealmente con la variable de respuesta
+
+# Felicidad con N_mascotas
+ggscatter(datos_entrenamiento, x = "Felicidad", y = "N_mascotas", add = "reg.line", conf.int = TRUE) + 
+  stat_cor(method = "pearson")
+# Para esta relación podemos asumir que es una lineal positiva débil, ya que, su valor R (0.29) se encuentra entre 0.2 y 0.4. Ademas,  podemos asumir que la correlación observada es significativa, ya que, su valor p (0.014) es menor al nivel de significancia alpha (0.05).
+
+# N_amigos con N_mascotas
+ggscatter(datos_entrenamiento, x = "N_amigos", y = "N_mascotas", add = "reg.line", conf.int = TRUE) + 
+  stat_cor(method = "pearson")
+# Para esta relación podemos asumir que es una lineal positiva muy débil, ya que, su valor R (0.18) se encuentra entre 0 y 0.2. Ademas,  podemos asumir que la correlación observada no es significativa, ya que, su valor p (0.14) es mayor al nivel de significancia alpha (0.05).
+
+# Sexo con N_mascotas
+ggscatter(datos_entrenamiento, x = "Sexo", y = "N_mascotas", add = "reg.line", conf.int = TRUE) + 
+  stat_cor(method = "pearson")
+# Para esta relación podemos asumir que es una lineal positiva débil, ya que, su valor R (0.32) se encuentra entre 0.2 y 0.4. Ademas,  podemos asumir que la correlación observada es significativa, ya que, su valor p (0.007) es menor al nivel de significancia alpha (0.05).
+
+# Edad con N_mascotas
+ggscatter(datos_entrenamiento, x = "Edad", y = "N_mascotas", add = "reg.line", conf.int = TRUE) + 
+  stat_cor(method = "pearson")
+# Para esta relación podemos asumir que es una lineal negativa muy débil, ya que, su valor R (-0.043) se encuentra entre 0 y -0.2. Ademas,  podemos asumir que la correlación observada no es significativa, ya que, su valor p (0.73) es mayor al nivel de significancia alpha (0.05).
+```
+
+
+```{r}
+predicciones_inicial <- predict(modelo_inicial, newdata = datos_probar_modelo)
+
+mse_inicial <- mean((datos_probar_modelo$N_mascotas - predicciones_inicial)^2)
+```
 
 
 
-
-
+```{r}
+# Evaluar el R-cuadrado y R-cuadrado ajustado del modelo
+summary(modelo_termina)$r.squared
+summary(modelo_termina)$adj.r.squared
+```
 
