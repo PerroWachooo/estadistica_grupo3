@@ -265,8 +265,11 @@ predicciones_inicial <- predict(modelo_simple5, newdata = datos_prueba)
 
 mse_inicial <- mean((datos_prueba$Weight - predicciones_inicial)^2)
 mse_inicial
+
 ```
+Aqui se puede apreciar que el mse es de 11.19, por lo tanto existe un margen de error de 11.19
+
 ```{r}
 summary(modelo_simple5)
 ```
-
+como se puede apreciar el p-value es bajisimo, lo cual nos dice que el modelo en cuestion es altamente significativo, ademas el valor de R-squared el cual es del 0.9121 significa que mas del 90% de la variabilidad es explicada con el modelo creado. 
