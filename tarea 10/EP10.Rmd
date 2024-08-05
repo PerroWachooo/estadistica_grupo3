@@ -4,9 +4,20 @@ output: html_document
 date: "`r Sys.Date()`"
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+
+
+```{r}
+# Importamos las librerías
+library(dplyr)
+library(ggplot2)
+library(EnvStats)
+library(ggpubr)
+library(tidyverse)
+library(car)
+library(lmtest)
 ```
+
+
 
   El equipo crea la variable IMC (índice de masa corporal) como el peso de una persona (en kilogramos) dividida por el cuadrado de su estatura (en metros).
   
@@ -15,22 +26,64 @@ Si bien esta variable se usa para clasificar a las personas en varias clases de 
 El equipo crea la variable dicotómica EN (estado nutricional) de acuerdo al valor de IMC de cada persona.
 Ahora podemos construir un modelo de regresión logística para predecir la variable EN, de acuerdo con las siguientes instrucciones:
 
-1. Definir la semilla a utilizar, que corresponde a los últimos cuatro dígitos del RUN (sin considerar el dígito verificador) del integrante de mayor edad del equipo.
+ 1. Definir la semilla a utilizar, que corresponde a los últimos cuatro dígitos del RUN (sin considerar el dígito verificador) del integrante de mayor edad del equipo. 
 
-2. Seleccionar una muestra de 150 mujeres (si la semilla es un número par) o 150 hombres (si la semilla es impar), asegurando que la mitad tenga estado nutricional “sobrepeso” y la otra mitad “no sobrepeso” en cada caso. Dividir esta muestra en dos conjuntos: los datos de 100 personas (50 con EN “sobrepeso”) para utilizar en la construcción de los modelos y 50 personas (25 con EN “sobrepeso”) para poder evaluarlos.
+ 2. Seleccionar una muestra de 150 mujeres (si la semilla es un número par) o 150 hombres (si la semilla es impar), asegurando que la mitad tenga estado nutricional “sobrepeso” y la otra mitad “no sobrepeso” en cada caso. Dividir esta muestra en dos conjuntos: los datos de 100 personas (50 con EN “sobrepeso”) para utilizar en la construcción de los modelos y 50 personas (25 con EN “sobrepeso”) para poder evaluarlos.
 
-3. Recordar las ocho posibles variables predictoras seleccionadas de forma aleatoria en el ejercicio anterior.
+### 3. Recordar las ocho posibles variables predictoras seleccionadas de forma aleatoria en el ejercicio anterior.
 
-4. Seleccionar, de las otras variables, una que el equipo considere que podría ser útil para predecir la clase EN, justificando bien esta selección (idealmente con literatura).
+### 4. Seleccionar, de las otras variables, una que el equipo considere que podría ser útil para predecir la clase EN, justificando bien esta selección (idealmente con literatura).
 
-5.Usando el entorno R, construir un modelo de regresión logística con el predictor seleccionado en el paso anterior y utilizando de la muestra obtenida.
+### 5.Usando el entorno R, construir un modelo de regresión logística con el predictor seleccionado en el paso anterior y utilizando de la muestra obtenida.
 
-6.Usando estas herramientas para la exploración de modelos del entorno R1, buscar entre dos y cinco predictores de entre las variables seleccionadas al azar, recordadas en el punto 3, para agregar al modelo obtenido en el paso 5.
+### 6.Usando estas herramientas para la exploración de modelos del entorno R1, buscar entre dos y cinco predictores de entre las variables seleccionadas al azar, recordadas en el punto 3, para agregar al modelo obtenido en el paso 5.
 
-7.Evaluar la confiabilidad de los modelos (i.e. que tengan un buen nivel de ajuste y son generalizables) y “arreglarlos” en caso de que tengan algún problema.
+### 7.Evaluar la confiabilidad de los modelos (i.e. que tengan un buen nivel de ajuste y son generalizables) y “arreglarlos” en caso de que tengan algún problema.
 Usando código estándar1, evaluar el poder predictivo de los modelos con los datos de las 50 personas que no se incluyeron en su construcción en términos de sensibilidad y especificidad.
 
 ```{r}
+# Lectura de archivo
+# Se abre el CSV, cambiar la ruta según corresponda
+nombre_archivo <- "EP09 Datos.csv"
+datos <- read.csv2(nombre_archivo)
+
+```
+
+```{r}
+# Definir la semilla
+set.seed(5824) # Semilla par, se seleccionan mujeres
+
+#Se crea una nueva columna para cada fila
+datos$IMC <- datos$Weight / (datos$Height/100)^2
+
+
+# Se crea la variable dicotómica EN, (Sobrepeso = 1, No sobrepeso = 0)
+datos$EN <- ifelse(datos$IMC >= 23.2, 1, 0)
+
+
+# Seleccionar una muestra aleatoria de 150 mujeres (si la semilla es un número par)
+datos_mujeres_sinsobrepeso <- datos %>%
+  filter(Gender == 0, EN==0) %>%
+  sample_n(75)
+
+datos_mujeres_consobrepeso <- datos %>%
+  filter(Gender == 0, EN==1) %>%
+  sample_n(75)
+
+#Separamos los conjuntos de prueba y entrenamiento
+m_sinS_prueba <- head(datos_mujeres_sinsobrepeso, 50)
+m_conS_prueba <- head(datos_mujeres_consobrepeso, 50)
+
+m_sinS_entrenamiento <- tail(datos_mujeres_sinsobrepeso, 25)
+m_conS_entrenamiento <- tail(datos_mujeres_consobrepeso, 25)
+
+#Juntamos los conjuntos de prueba y entrenamiento
+datos_prueba <- rbind(m_sinS_prueba, m_conS_prueba)
+datos_entrenamiento <- rbind(m_sinS_entrenamiento, m_conS_entrenamiento)
+
+#Creamos una lista con las variables predictoras Elbows.diameter + Bitrochanteric.diameter + Chest.diameter + Waist.Girth + Bicep.Girth + Chest.depth + Calf.Maximum.Girth + Navel.Girth
+variables <- c("Elbows.diameter", "Bitrochanteric.diameter", "Chest.diameter", "Waist.Girth", "Bicep.Girth", "Chest.depth", "Calf.Maximum.Girth", "Navel.Girth")
+
 
 ```
 
