@@ -41,6 +41,9 @@ Ahora podemos construir un modelo de regresión logística para predecir la vari
 ### 7.Evaluar la confiabilidad de los modelos (i.e. que tengan un buen nivel de ajuste y son generalizables) y “arreglarlos” en caso de que tengan algún problema.
 Usando código estándar1, evaluar el poder predictivo de los modelos con los datos de las 50 personas que no se incluyeron en su construcción en términos de sensibilidad y especificidad.
 
+
+Primero se habrira el archoivo de datos llamdo EP09 Datos.csv y se carga en el data frame llamdo "Datos"
+
 ```{r}
 # Lectura de archivo
 # Se abre el CSV, cambiar la ruta según corresponda
@@ -48,6 +51,9 @@ nombre_archivo <- "EP09 Datos.csv"
 datos <- read.csv2(nombre_archivo)
 
 ```
+
+
+ahora se define la semilla, y se crea en el data frame una nueva columna que indica el IMC y el EN, para esta ultima se revisa si el IMC es superior a un umbral (23.2), de ser mayor se considera en sobrepeso y en la columna EN, se anota un 1, en caso contrario se considera sin sobrepeso, y se anota un 0, esto se hace para poder trabajar este parametro de mejor manera y evitar posibles complicaciones en un futuro, tambien se crean los conjuntos de prueba y de entrenamiento considerando las condiciones solicitadas.
 
 ```{r}
 # Definir la semilla
@@ -84,6 +90,27 @@ datos_entrenamiento <- rbind(m_sinS_entrenamiento, m_conS_entrenamiento)
 #Creamos una lista con las variables predictoras Elbows.diameter + Bitrochanteric.diameter + Chest.diameter + Waist.Girth + Bicep.Girth + Chest.depth + Calf.Maximum.Girth + Navel.Girth
 variables <- c("Elbows.diameter", "Bitrochanteric.diameter", "Chest.diameter", "Waist.Girth", "Bicep.Girth", "Chest.depth", "Calf.Maximum.Girth", "Navel.Girth")
 
+```
+
+Ahora se crea un modelo de regresion logistica con la variable elegida, la cual fue "Biiliac.diameter", se eligio esta variable debido a que....
+```{r}
+
+#usar pero falta justificar de buena manera
+modeloSimple <- glm(EN ~ Biiliac.diameter, data = datos_entrenamiento, family = binomial)
+summary(model)
+```
+
+ahora se utilizaran las herramientas presentes en R para seleccionar otras variables predictoras,claramente se elegiran las variables que mas influyan en la prediccion del modelo, sin sobreajustarlo, y sin ningun sesgo en su eleccion, para esto se utilizara las variables que fueron seleccionadas de forma aleatoria en la actividad anterior
+
+```{r}
+modeloTest <- add1(modeloSimple, scope = ~ Elbows.diameter + Bitrochanteric.diameter + Chest.diameter + Waist.Girth + Bicep.Girth + Chest.depth + Calf.Maximum.Girth + Navel.Girth, test = "Chisq")
+modeloTest
 
 ```
+
+
+
+
+
+
 
