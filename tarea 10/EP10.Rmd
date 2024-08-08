@@ -7,6 +7,14 @@ date: "`r Sys.Date()`"
 
 
 ```{r}
+if (!require("dplyr")) install.packages("dplyr")
+if (!require("ggpubr")) install.packages("ggpubr")
+if (!require("psych")) install.packages("psych")
+if (!require("ggfortify")) install.packages("ggfortify")
+if (!require("car")) install.packages("car")
+
+
+
 # Importamos las librerías
 library(dplyr)
 library(ggplot2)
@@ -15,6 +23,9 @@ library(ggpubr)
 library(tidyverse)
 library(car)
 library(lmtest)
+library(ggpubr)
+library(psych)
+library(ggfortify)
 ```
 
 
@@ -164,6 +175,73 @@ modeloE <- predict(modelo_simple6, datos_prueba, type = "response")
 ```
 
 Revisamos porque genera errores de convergencia
+
+
 ```{r}
-print(anova(modeloNulo, modelo_simple2, modelo_simple3, modelo_simple4, modelo_simple5, modelo_simple6, test = "LRT"))
-`
+print(anova(modeloNulo,modeloSimple, modelo_simple2, modelo_simple3, modelo_simple4, modelo_simple5, modelo_simple6, test = "LRT"))
+
+```
+Como se puede apreciar el mejor modelo es el "modelo_simple2", por lo que se procedera a verificar las condiciones para generalizar dicho modelo
+
+las condiciones son: 
+1.- debe existir correlacion lineal entre los predictores y la respuesta transformada
+2.- los residuos deben ser independientes 
+
+ademas de estas condiciones se revisara que no exista multicolinealidad.
+
+verificar linealidad
+
+```{r}
+# Verificar linealidad con los predictores
+datos_lin_w <- datos_entrenamiento %>%
+  select_all() %>%
+  mutate(Logit = psych::logit(fitted(modelo_simple2)))
+datos_lin_l <- pivot_longer(datos_lin_w, cols = c(Biiliac.diameter, Bicep.Girth), names_to = "Predictor", values_to = "Valor")
+
+P_1 <- ggscatter(datos_lin_l, x = "Logit", y = "Valor", ylab = "Valor del predictor")
+P_1 <- P_1 + geom_smooth(method = lm, formula = y ~ x, se = TRUE)
+P_1 <- P_1 + theme_pubr()
+P_1 <- P_1 + facet_wrap(~ Predictor, scales = "free_y")
+print(P_1)
+
+
+
+```
+
+
+```{r}
+
+# Verificar independencia de los residuos
+cat("\n")
+cat("Verificación de independencia de los residuos\n")
+cat("-------------------------------------------\n")
+print(durbinWatsonTest(modelo_simple3))
+
+
+```
+
+
+```{r}
+# Verificar normalidad de los residuos
+P_2 <- autoplot(modelo_simple2, which = 2, label.colour = 'blue', label.repel = TRUE)
+P_2 <- P_2 + theme_pubr()
+print(P_2)
+
+```
+
+```{r}
+# Revisar posibles casos influyentes
+estad_inf <- influence.measures(modelo_simple2)
+estad_infmat <- round(estad_inf$infmat, 3)
+cat("\n")
+cat("Casos sospechosos de apalancamiento\n")
+cat("-----------------------------------\n")
+print(estad_inf)
+
+
+```
+
+
+
+
+
