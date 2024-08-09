@@ -259,29 +259,41 @@ ahora se realizara una curva ROC y una matriz de confucion.
 
 
 ```{r}
-# Instalar la librería pROC (si no está ya instalada)
-install.packages("pROC")
-
-# Cargar la librería pROC
+# Instalar y cargar las librerías necesarias
 library(pROC)
+library(e1071)
 
 # Evaluación del poder predictivo
-# Seleccionamos el modelo con 3 predictores
 modelo_final <- modelo_simple3
 
-#Ecaluamos con el conjunto de prueba
-predicciones <- predict(modelo_final, datos_prueba, type = "response")
+# Obtener las predicciones del modelo
+predicciones_prob <- predict(modelo_final, datos_prueba, type = "response")
 
-#Graficamos la curva ROC, indicando AUC obtenido
-roc <- roc(datos_prueba$EN, predicciones)
+# Graficar la curva ROC y calcular el AUC
+roc <- roc(datos_prueba$EN, predicciones_prob)
 plot(roc, main = "Curva ROC", col = "blue")
 auc(roc)
 
-# Obtener las predicciones (con el mismo umbral)
-predicciones <- ifelse(predicciones > 0.5, 1, 0)
+matriz_confusion <- table(Predicted = predicciones, Actual = referencia)
+print(matriz_confusion)
 
+# Extraer valores de la matriz de confusión
+TP <- matriz_confusion["1", "1"]  # Verdaderos positivos
+TN <- matriz_confusion["0", "0"]  # Verdaderos negativos
+FP <- matriz_confusion["1", "0"]  # Falsos positivos
+FN <- matriz_confusion["0", "1"]  # Falsos negativos
 
+# Calcular métricas
+precision <- TP / (TP + FP)
+recall <- TP / (TP + FN)
+accuracy <- (TP + TN) / (TP + TN + FP + FN)
+f1_score <- 2 * (precision * recall) / (precision + recall)
 
-
-
+# Imprimir métricas
+cat("Precisión:", precision, "\n")
+cat("Recall:", recall, "\n")
+cat("Exactitud:", accuracy, "\n")
+cat("F1 Score:", f1_score, "\n")
 ```
+ El modelo muestra un buen desempeño general con una alta sensibilidad y un F1 Score sólido. La capacidad para identificar correctamente casos de sobrepeso es especialmente fuerte, lo que es crucial para este tipo de predicción.
+ por lo tanto el modelo de regresión logística cumple con las expectativas generales para la tarea de clasificación
