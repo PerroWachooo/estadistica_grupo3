@@ -95,17 +95,22 @@ m_conS_entrenamiento <- tail(datos_mujeres_consobrepeso, 25)
 #Juntamos los conjuntos de prueba y entrenamiento
 datos_prueba <- rbind(m_sinS_prueba, m_conS_prueba)
 datos_entrenamiento <- rbind(m_sinS_entrenamiento, m_conS_entrenamiento)
-#Desordenamos los datos con sample
-datos_prueba <- datos_prueba[sample(nrow(datos_prueba)),]
-datos_entrenamiento <- datos_entrenamiento[sample(nrow(datos_entrenamiento)),]
 
 
 #Creamos una lista con las variables predictoras Elbows.diameter + Bitrochanteric.diameter + Chest.diameter + Waist.Girth + Bicep.Girth + Chest.depth + Calf.Maximum.Girth + Navel.Girth
 variables <- c("Elbows.diameter", "Bitrochanteric.diameter", "Chest.diameter", "Waist.Girth", "Bicep.Girth", "Chest.depth", "Calf.Maximum.Girth", "Navel.Girth")
 
-
-
 ```
+
+
+
+debido a como se filtraron los datos, estos estan ordenados, entiendase por esto que al inicio estan todos losdatos en los cuales en parametro "EN" es igual a 1 y luego estan todos los que "EN" es igual a 0, por lo cual se desordenaran los datos utilizando la funcion sample.
+```{r}
+#Desordenamos los datos con sample
+datos_prueba <- datos_prueba[sample(nrow(datos_prueba)),]
+datos_entrenamiento <- datos_entrenamiento[sample(nrow(datos_entrenamiento)),]
+```
+
 
 Ahora se crea un modelo de regresion logistica con la variable elegida y uno nulo, la cual fue "Biiliac.diameter", se eligio esta variable debido a que....
 ```{r}
@@ -117,10 +122,9 @@ modeloSimple <- glm(EN ~ Biiliac.diameter, data = datos_entrenamiento, family = 
 summary(modeloSimple)
 ```
 
+
+
 ahora se utilizaran las herramientas presentes en R para seleccionar otras variables predictoras,claramente se elegiran las variables que mas influyan en la prediccion del modelo, sin sobreajustarlo, y sin ningun sesgo en su eleccion, para esto se utilizara las variables que fueron seleccionadas de forma aleatoria en la actividad anterior
-
-
-
 ```{r}
 modelo_completo <- glm(EN ~ Biiliac.diameter + Shoulder.Girth + Elbows.diameter + Bitrochanteric.diameter + Chest.diameter + Waist.Girth + Bicep.Girth + Chest.depth + Calf.Maximum.Girth + Navel.Girth, data = datos_entrenamiento, family = binomial)
 
@@ -128,7 +132,8 @@ modeloTest <- add1(modeloSimple, scope = modelo_completo)
 modeloTest
 
 ```
-Revisamos los AIC con menor valor y se observa que Bicep.Girth, Navel Girth, Waist.Girth, Shoulder.Girth, Chest.depth son las menores
+
+analizando los datos, mirando valor de "AIC", se puede apreciar que la variable con el "AIC" mas pequeño es: "bicep.girth", por lo tanto esta es la primera variable que sera añadida al modelo, luego se crearan mas modelos añadiendo en cada uno una variable extra, estas variables seran elegidas, por su "AIC", cabe señalar que seran las 5 variables con menor "AIC"
 
 ```{r}
 #Modificamos el modelo añadiendo el predictor que nos dio el menor AIC, "Bicep.Girth"
@@ -166,7 +171,7 @@ AIC_5 <- add1(modelo_simple5, scope = modelo_completo)
 AIC_5
 ```
 
-Se crearon 5 modelos distintos, donde cada uno tiene un predictor más que el anterior, siendo el modelo con más predictores 5 y el con menos el 2. 
+Se crearon 5 modelos distintos, donde cada uno tiene un predictor más que el anterior, siendo el modelo con más predictores "modelo_simple6" y el con menos predictores (sin tomar en cuenta el modelo nulo y el modelo con 1 solo predictor)  
 
 
 ```{r}
@@ -177,24 +182,25 @@ modeloD <- predict(modelo_simple5, datos_prueba, type = "response")
 modeloE <- predict(modelo_simple6, datos_prueba, type = "response")
 ```
 
-Revisamos porque genera errores de convergencia
+se utiliza ANOVA para comparar los modelos entre si.
 ```{r}
 print(anova(modeloNulo, modelo_simple2, modelo_simple3, modelo_simple4, modelo_simple5, modelo_simple6, test = "LRT"))
 ```
 
 
-Como podemos apreciar, no hay diferencias significativas entre los modelos, así que usaremos el modelo 2, que tiene como predictores Biiliac.diameter y Bicep.Girth, para evaluar su poder predictivo.
+como se puede apreciar no hay diferencias mayores apartir del "modelo_simple2", por lo tanto debido a que si bien "modelo_simple2" y "modelo_simple3" no poseen diferencias significativas, se eligio este ultimo debido a que apartir de "modelo_simple3" la diferencia es aun mas baja que entre "modelo_simple2" y "modelo_simple3"
 
 
-Chequeamos si cumple las condiciones
+ahora se revisara si "modelo_simple3", cumple las condiciones para generalizarlo.
 
+estas condiciones son:
+1.- la linealidad de los predictores
+2.- la independencia de los residuos
+y ademas de comprobara la multicolinealidad
+
+
+para comprobar la linealidad de los predictores se realizara un grafico
 ```{r}
-###Vericamos la multicolinealidad
-vifs_3 <- vif(modelo_simple3)
-print(vifs_3)
-print(mean(vifs_3))
-
-
 ### Verificar linealidad con los predictores
 datos_lin_w <- datos_entrenamiento %>%
   select_all() %>%
@@ -207,7 +213,13 @@ P_1 <- P_1 + theme_pubr()
 P_1 <- P_1 + facet_wrap(~ Predictor, scales = "free_y")
 print(P_1)
 
+```
 
+como se puede apreciar pese a haber algunos valores que se elejan de la recta, aun asi se puede afirmar que se cumple que los predictores son lineales
+
+ahora se revisara la independencia de los residuos, para lo cual se utilizara durbinWatsonTest
+
+```{r}
 
 ### Verificar independencia de los residuos
 cat("\n")
@@ -215,8 +227,18 @@ cat("Verificación de independencia de los residuos\n")
 cat("-------------------------------------------\n")
 print(durbinWatsonTest(modelo_simple3))
 
+```
+
+como  se puede apreciar por los valores, los residuos son independientes
 
 
+ahora se revisara la multicolinealidad
+
+```{r}
+###Vericamos la multicolinealidad
+vifs_3 <- vif(modelo_simple3)
+print(vifs_3)
+print(mean(vifs_3))
 
 ### Revisar posibles casos influyentes
 estad_inf <- influence.measures(modelo_simple3)
@@ -228,10 +250,12 @@ cat("-----------------------------------\n")
 ##< --------------------------- Revisar casos influyente/atipicos ------------------------------>
 
 ```
-
+como se puede apreciar los valores son menores a 10, esto confirma la multicolinealidad.
 
 
 Como podemos ver, se cumplen todas las condiciones para generalizar nuestro model RLM, ya que  los predictores son lineales, los residuos son independientes y se cumple la multicolinealidad de los residuos, por lo que podemos proceder a evaluar el poder predictivo del modelo.
+
+ahora se realizara una curva ROC y una matriz de confucion.
 
 
 ```{r}
