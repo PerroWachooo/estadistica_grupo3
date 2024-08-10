@@ -269,12 +269,19 @@ modelo_final <- modelo_simple3
 # Obtener las predicciones del modelo
 predicciones_prob <- predict(modelo_final, datos_prueba, type = "response")
 
+# Convertir probabilidades en predicciones binarias con umbral de 0.5
+predicciones <- ifelse(predicciones_prob > 0.5, 1, 0)
+
 # Graficar la curva ROC y calcular el AUC
 roc <- roc(datos_prueba$EN, predicciones_prob)
 plot(roc, main = "Curva ROC", col = "blue")
 auc(roc)
 
-matriz_confusion <- table(Predicted = predicciones, Actual = referencia)
+# Crear la matriz de confusión
+
+#prediccones: un vector binario que da valores a la clase predicha en pocas palabras un vector con un 1 o un 0, se coloca un 1 o un 0 de acuerdo a un cierto umbral
+#: actual: los datos reales.
+matriz_confusion <- table(Predicted = predicciones, Actual = datos_prueba$EN)
 print(matriz_confusion)
 
 # Extraer valores de la matriz de confusión
@@ -294,6 +301,7 @@ cat("Precisión:", precision, "\n")
 cat("Recall:", recall, "\n")
 cat("Exactitud:", accuracy, "\n")
 cat("F1 Score:", f1_score, "\n")
+
 ```
  El modelo muestra un buen desempeño general con una alta sensibilidad y un F1 Score sólido. La capacidad para identificar correctamente casos de sobrepeso es especialmente fuerte, lo que es crucial para este tipo de predicción.
  por lo tanto el modelo de regresión logística cumple con las expectativas generales para la tarea de clasificación
