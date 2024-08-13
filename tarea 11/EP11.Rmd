@@ -1,6 +1,6 @@
 ---
 title: "EP11"
-author: "Nicolas salinas"
+author: "Anonymus"
 date: "2024-08-11"
 output: html_document
 ---
@@ -9,22 +9,35 @@ Para este ejercicio usaremos los datos de medidas anatómicas recolectados por H
 
 En este contexto realizaremos las siguientes actividades:
 
-### Definir la semilla a utilizar, que corresponde a los primeros cinco dígitos del RUN del integrante de mayor edad del equipo.
+ 1. Definir la semilla a utilizar, que corresponde a los primeros cinco dígitos del RUN del integrante de mayor edad del equipo.
 
-### Seleccionar una muestra de 100 personas, asegurando que la mitad tenga estado nutricional “sobrepeso” y la otra mitad “no sobrepeso”.
+2. Seleccionar una muestra de 100 personas, asegurando que la mitad tenga estado nutricional “sobrepeso” y la otra mitad “no sobrepeso”.
 
-### Usando las herramientas del paquete leaps, realizar una búsqueda exhaustiva para seleccionar entre dos y ocho predictores que ayuden a estimar la variable Peso (Weight), obviamente sin considerar las nuevas variables IMC ni EN, y luego utilizar las funciones del paquete caret para construir un modelo de regresión lineal múltiple con los predictores escogidos y evaluarlo usando bootstrapping.
+3. Usando las herramientas del paquete leaps, realizar una búsqueda exhaustiva para seleccionar entre dos y ocho predictores que ayuden a estimar la variable Peso (Weight), obviamente sin considerar las nuevas variables IMC ni EN, y luego utilizar las funciones del paquete caret para construir un modelo de regresión lineal múltiple con los predictores escogidos y evaluarlo usando bootstrapping.
 
-### Haciendo un poco de investigación sobre el paquete caret, en particular cómo hacer Recursive Feature Elimination (RFE), construir un modelo de regresión lineal múltiple para predecir la variable IMC que incluya entre 10 y 20 predictores, seleccionando el conjunto de variables que maximice R2 y que use cinco repeticiones de validación cruzada de cinco pliegues para evitar el sobreajuste (obviamente no se debe considerar las variables Peso, Estatura ni estado nutricional –Weight, Height, EN respectivamente).
+### 4. Haciendo un poco de investigación sobre el paquete caret, en particular cómo hacer Recursive Feature Elimination (RFE), construir un modelo de regresión lineal múltiple para predecir la variable IMC que incluya entre 10 y 20 predictores, seleccionando el conjunto de variables que maximice R2 y que use cinco repeticiones de validación cruzada de cinco pliegues para evitar el sobreajuste (obviamente no se debe considerar las variables Peso, Estatura ni estado nutricional –Weight, Height, EN respectivamente).
 
-### Usando RFE, construir un modelo de regresión logística múltiple para la variable EN que incluya el conjunto, de entre dos y seis, predictores que entregue la mejor curva ROC y que utilice validación cruzada dejando uno fuera para evitar el sobreajuste (obviamente no se debe considerar las variables Peso, Estatura –Weight y Height respectivamente– ni IMC).
+### 5. Usando RFE, construir un modelo de regresión logística múltiple para la variable EN que incluya el conjunto, de entre dos y seis, predictores que entregue la mejor curva ROC y que utilice validación cruzada dejando uno fuera para evitar el sobreajuste (obviamente no se debe considerar las variables Peso, Estatura –Weight y Height respectivamente– ni IMC).
 
-### Pronunciarse sobre la confiabilidad y el poder predictivo de los modelos obtenidos.
+### 6. Pronunciarse sobre la confiabilidad y el poder predictivo de los modelos obtenidos.
 
 
 
 ```{r}
 # Importamos las librerías
+if (!require("dplyr")) install.packages("dplyr")
+if (!require("ggplot2")) install.packages("ggplot2")
+if (!require("EnvStats")) install.packages("EnvStats")
+if (!require("ggpubr")) install.packages("ggpubr")
+if (!require("tidyverse")) install.packages("tidyverse")
+if (!require("car")) install.packages("car")
+if (!require("lmtest")) install.packages("lmtest")
+if (!require("psych")) install.packages("psych")
+if (!require("ggfortify")) install.packages("ggfortify")
+if (!require("leaps")) install.packages("leaps")
+if (!require("caret")) install.packages("caret")
+if (!require("boot")) install.packages("boot")
+
 library(dplyr)
 library(ggplot2)
 library(EnvStats)
@@ -35,7 +48,7 @@ library(lmtest)
 library(psych)
 library(ggfortify)
 library(leaps)
-# library(caret)
+library(caret)
 library(boot)
 
 
@@ -94,7 +107,7 @@ una vez se tienen los datos ya preparados y desordenados, toca elegir los predic
 
 ```{r}
 # (Excluyendo las variables IMC y EN)
-variables_lineales <- setdiff(names(datos_Prueba), c("Weight", "IMC", "EN"))
+variables_lineales <- setdiff(names(datos_Prueba), c("Weight", "IMC", "EN", "Height"))
 
 # Selección de predictores usando regsubsets
 leaps_model <- regsubsets(Weight ~ ., data = datos_Prueba[ , c("Weight", variables_lineales)], 
@@ -103,15 +116,46 @@ leaps_model <- regsubsets(Weight ~ ., data = datos_Prueba[ , c("Weight", variabl
 # Obtener los mejores predictores (selección entre 2 y 8)
 summary_leaps <- summary(leaps_model)
 best_predictors <- names(coef(leaps_model, which.min(summary_leaps$cp))[-1])
+best_predictors
 ```
 
 ahora se construira un modelo de regresion lineal multiple usando los predictores obtenidos del paso anterior. y usando la libreria "caret"
 
 ```{r}
 # Construcción del modelo de regresión lineal múltiple con caret
-control <- trainControl(method = "boot", number = 100)
-model_lm <- train(Weight ~ ., data = muestra[ , c("Weight", best_predictors)],
+control <- trainControl(method = "boot", number = 2999)
+model_lm <- train(Weight ~ ., data = datos_Prueba[ , c("Weight", best_predictors)],
                   method = "lm", trControl = control)
+
+summary(model_lm$finalModel)
+
+```
+
+Ahora se hace un modelo de regresión lineal múltiple para predecir la variable IMC, que incluya entre 10 y 20 predictores, seleccionando el conjunto de variables que maximice R2 y que use cinco repeticiones de validación cruzada de cinco pliegues para evitar el sobreajuste (obviamente no se debe considerar las variables Peso, Estatura ni estado nutricional –Weight, Height, EN respectivamente–).
+
+```{r}
+
+datos_prueba4 <- datos_Prueba[, -which(names(datos) %in% c("Weight", "Height", "EN"))]
+
+control_rfe <- rfeControl(
+  functions = lmFuncs,
+  method = "repeatedcv",
+  number = 5,
+  repeats = 5,
+  verbose = FALSE
+)
+
+#Creamos el modelo de RFE, sin considerar Weight, Height, EN
+modelo_rfe <- rfe(
+  x = datos_prueba4,
+  y = datos_Prueba$IMC,
+  sizes = seq(10, 20),  # Tamaños del subconjunto de predictores a evaluar
+  rfeControl = control_rfe,
+  metric = "Rsquared" #Metrica a maximizar R^2
+)
+
+summary(modelo_rfe)
+
 ```
 
 
