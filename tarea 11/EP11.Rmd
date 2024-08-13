@@ -15,7 +15,7 @@ En este contexto realizaremos las siguientes actividades:
 
 3. Usando las herramientas del paquete leaps, realizar una búsqueda exhaustiva para seleccionar entre dos y ocho predictores que ayuden a estimar la variable Peso (Weight), obviamente sin considerar las nuevas variables IMC ni EN, y luego utilizar las funciones del paquete caret para construir un modelo de regresión lineal múltiple con los predictores escogidos y evaluarlo usando bootstrapping.
 
-### 4. Haciendo un poco de investigación sobre el paquete caret, en particular cómo hacer Recursive Feature Elimination (RFE), construir un modelo de regresión lineal múltiple para predecir la variable IMC que incluya entre 10 y 20 predictores, seleccionando el conjunto de variables que maximice R2 y que use cinco repeticiones de validación cruzada de cinco pliegues para evitar el sobreajuste (obviamente no se debe considerar las variables Peso, Estatura ni estado nutricional –Weight, Height, EN respectivamente).
+4. Haciendo un poco de investigación sobre el paquete caret, en particular cómo hacer Recursive Feature Elimination (RFE), construir un modelo de regresión lineal múltiple para predecir la variable IMC que incluya entre 10 y 20 predictores, seleccionando el conjunto de variables que maximice R2 y que use cinco repeticiones de validación cruzada de cinco pliegues para evitar el sobreajuste (obviamente no se debe considerar las variables Peso, Estatura ni estado nutricional –Weight, Height, EN respectivamente).
 
 ### 5. Usando RFE, construir un modelo de regresión logística múltiple para la variable EN que incluya el conjunto, de entre dos y seis, predictores que entregue la mejor curva ROC y que utilice validación cruzada dejando uno fuera para evitar el sobreajuste (obviamente no se debe considerar las variables Peso, Estatura –Weight y Height respectivamente– ni IMC).
 
@@ -80,7 +80,7 @@ datos$IMC <- datos$Weight / (datos$Height/100)^2
 
 
 # Se crea la variable dicotómica EN, (Sobrepeso = 1, No sobrepeso = 0)
-datos$EN <- ifelse(datos$IMC >= 23.2, 1, 0)
+datos$EN <- as.factor(ifelse(datos$IMC >= 23.2, 1, 0))
 
 ```
 
@@ -135,7 +135,7 @@ Ahora se hace un modelo de regresión lineal múltiple para predecir la variable
 
 ```{r}
 
-datos_prueba4 <- datos_Prueba[, -which(names(datos) %in% c("Weight", "Height", "EN"))]
+datos_prueba4 <- datos_Prueba[, -which(names(datos) %in% c("Weight", "Height", "EN", "IMC"))]
 
 control_rfe <- rfeControl(
   functions = lmFuncs,
@@ -154,10 +154,40 @@ modelo_rfe <- rfe(
   metric = "Rsquared" #Metrica a maximizar R^2
 )
 
-summary(modelo_rfe)
+summary(modelo_rfe$fit)
 
 ```
 
 
+Construir un modelo de regresión logística múltiple para la variable EN que incluya el conjunto, de entre dos y seis, predictores que entregue la mejor curva ROC y que utilice validación cruzada dejando uno fuera para evitar el sobreajuste (obviamente no se debe considerar las variables Peso, Estatura –Weight y Height respectivamente– ni IMC).
 
+```{r}
+
+predictores_disponibles <- setdiff(colnames(datos_Prueba), c("Weight", "Height", "IMC"))
+
+# Selección de predictores usando regsubsets
+model_leaps<-regsubsets(EN ~.,data=datos_Prueba[, predictores_disponibles],nbest = 1)
+plot(model_leaps, scale="bic")
+
+```
+
+```{r}
+formula <- as.formula(paste("EN ~", paste(mejores_predictores, collapse = " + ")))
+modelo_logistico <- glm(EN ~ Bicep.girth + Hip.girth + Waist.girth , data = datos_Prueba, family = binomial)
+summary(modelo_logistico)
+```
+```{r}
+predicciones <- predict(modelo_logistico, type = "response")
+roc_obj <- roc(datos_Prueba$EN, predicciones)
+plot(roc_obj)
+auc(roc_obj)
+```
+
+Validación Cruzada
+```{r}
+control_loocv <- trainControl(method = "LOOCV")
+modelo_loocv <- train(formula, data = datos_Prueba, method = "glm", family = binomial, trControl = control_loocv)
+print(modelo_loocv)
+
+```
 
