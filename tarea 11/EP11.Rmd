@@ -9,19 +9,19 @@ Para este ejercicio usaremos los datos de medidas anatómicas recolectados por H
 
 En este contexto realizaremos las siguientes actividades:
 
- 1. Definir la semilla a utilizar, que corresponde a los primeros cinco dígitos del RUN del integrante de mayor edad del equipo.
+1.  Definir la semilla a utilizar, que corresponde a los primeros cinco dígitos del RUN del integrante de mayor edad del equipo.
 
-2. Seleccionar una muestra de 100 personas, asegurando que la mitad tenga estado nutricional “sobrepeso” y la otra mitad “no sobrepeso”.
+2.  Seleccionar una muestra de 100 personas, asegurando que la mitad tenga estado nutricional “sobrepeso” y la otra mitad “no sobrepeso”.
 
-3. Usando las herramientas del paquete leaps, realizar una búsqueda exhaustiva para seleccionar entre dos y ocho predictores que ayuden a estimar la variable Peso (Weight), obviamente sin considerar las nuevas variables IMC ni EN, y luego utilizar las funciones del paquete caret para construir un modelo de regresión lineal múltiple con los predictores escogidos y evaluarlo usando bootstrapping.
+3.  Usando las herramientas del paquete leaps, realizar una búsqueda exhaustiva para seleccionar entre dos y ocho predictores que ayuden a estimar la variable Peso (Weight), obviamente sin considerar las nuevas variables IMC ni EN, y luego utilizar las funciones del paquete caret para construir un modelo de regresión lineal múltiple con los predictores escogidos y evaluarlo usando bootstrapping.
 
-4. Haciendo un poco de investigación sobre el paquete caret, en particular cómo hacer Recursive Feature Elimination (RFE), construir un modelo de regresión lineal múltiple para predecir la variable IMC que incluya entre 10 y 20 predictores, seleccionando el conjunto de variables que maximice R2 y que use cinco repeticiones de validación cruzada de cinco pliegues para evitar el sobreajuste (obviamente no se debe considerar las variables Peso, Estatura ni estado nutricional –Weight, Height, EN respectivamente).
+4.  Haciendo un poco de investigación sobre el paquete caret, en particular cómo hacer Recursive Feature Elimination (RFE), construir un modelo de regresión lineal múltiple para predecir la variable IMC que incluya entre 10 y 20 predictores, seleccionando el conjunto de variables que maximice R2 y que use cinco repeticiones de validación cruzada de cinco pliegues para evitar el sobreajuste (obviamente no se debe considerar las variables Peso, Estatura ni estado nutricional –Weight, Height, EN respectivamente).
 
-### 5. Usando RFE, construir un modelo de regresión logística múltiple para la variable EN que incluya el conjunto, de entre dos y seis, predictores que entregue la mejor curva ROC y que utilice validación cruzada dejando uno fuera para evitar el sobreajuste (obviamente no se debe considerar las variables Peso, Estatura –Weight y Height respectivamente– ni IMC).
+5. Usando RFE, construir un modelo de regresión logística múltiple para la variable EN que incluya el conjunto, de entre dos y seis, predictores que entregue la mejor curva ROC y que utilice validación cruzada dejando uno fuera para evitar el sobreajuste (obviamente no se debe considerar las variables Peso, Estatura –Weight y Height respectivamente– ni IMC).
 
 ### 6. Pronunciarse sobre la confiabilidad y el poder predictivo de los modelos obtenidos.
 
-
+Primeramente se cargaran todas las librerias requeridas para la correcta realizacion de esta actividad
 
 ```{r}
 # Importamos las librerías
@@ -38,6 +38,8 @@ if (!require("leaps")) install.packages("leaps")
 if (!require("caret")) install.packages("caret")
 if (!require("boot")) install.packages("boot")
 
+
+
 library(dplyr)
 library(ggplot2)
 library(EnvStats)
@@ -50,16 +52,12 @@ library(ggfortify)
 library(leaps)
 library(caret)
 library(boot)
+library(pROC)
 
 
 ```
 
-
-
-
-
-
-para realizar la actividad propuesta, en primera instancia se leeran los datos
+Una vez cargadas las librerias se procede a leer los datos y guardarlos en la variable "Datos"
 
 ```{r}
 # Lectura de archivo
@@ -69,7 +67,7 @@ datos <- read.csv2(nombre_archivo)
 
 ```
 
-luego a los datos almacenados en la variable "Datos" se les añade la columna  "IMC", y "EN", en esta ultima guardando una variable dicotomica la cual si es 1 indica que la persona tiene sobrepeso, si es un 0, indica que la persona no tiene sobrepeso
+Luego a los datos almacenados en la variable "Datos" se les añade la columna "IMC", y "EN", en esta ultima guardando una variable dicotomica la cual si es 1 indica que la persona tiene sobrepeso, si es un 0, indica que la persona no tiene sobrepeso
 
 ```{r}
 # Definir la semilla
@@ -84,7 +82,8 @@ datos$EN <- as.factor(ifelse(datos$IMC >= 23.2, 1, 0))
 
 ```
 
-ahora se procede a seleccionar la muestra de 100 personas claramente respetando la condicion de que la mitad deban tener un estado nutricional "sobrepeso" y la otra mitad "no sobrepeso", esto en el contexto de la variable añadida "EN", resulta en que la mitad tengan un EN = 1 y la otra mitad un EN = 0
+Ahora se procede a seleccionar la muestra de 100 personas claramente respetando la condicion de que la mitad deban tener un estado nutricional "sobrepeso" y la otra mitad "no sobrepeso", esto en el contexto de la variable añadida "EN", resulta en que la mitad tengan un EN = 1 y la otra mitad un EN = 0
+
 ```{r}
 # Seleccionar una muestra aleatoria de 150 mujeres (si la semilla es un número par)
 datos_sin_sobrepeso <- datos %>%
@@ -102,12 +101,11 @@ datos_Prueba <- datos_Prueba[sample(nrow(datos_Prueba)),]
 
 ```
 
-
-una vez se tienen los datos ya preparados y desordenados, toca elegir los predictores para lo cual se utilizara la libreria "leaps", para obtener los mejores predictores
+una vez se tienen los datos ya preparados y desordenados, toca elegir los predictores para lo cual se utilizara la libreria "leaps", para obtener los mejores predictores, mas especificamente se utilizara la funcion "setdiff" y "regsubsets", estos predictores se utilizaran posteriormente para predecir la variable "weight", como es evidente se debe omitir la variable "IMC" y la variable "EN".
 
 ```{r}
 # (Excluyendo las variables IMC y EN)
-variables_lineales <- setdiff(names(datos_Prueba), c("Weight", "IMC", "EN", "Height"))
+variables_lineales <- setdiff(names(datos_Prueba), c("Weight", "IMC", "EN"))
 
 # Selección de predictores usando regsubsets
 leaps_model <- regsubsets(Weight ~ ., data = datos_Prueba[ , c("Weight", variables_lineales)], 
@@ -119,7 +117,7 @@ best_predictors <- names(coef(leaps_model, which.min(summary_leaps$cp))[-1])
 best_predictors
 ```
 
-ahora se construira un modelo de regresion lineal multiple usando los predictores obtenidos del paso anterior. y usando la libreria "caret"
+ahora se construira un modelo de regresion lineal multiple usando los predictores obtenidos del paso anterior. y usando la libreria "caret", ademas de probarlo utilizando bootstraping
 
 ```{r}
 # Construcción del modelo de regresión lineal múltiple con caret
@@ -131,7 +129,9 @@ summary(model_lm$finalModel)
 
 ```
 
-Ahora se hace un modelo de regresión lineal múltiple para predecir la variable IMC, que incluya entre 10 y 20 predictores, seleccionando el conjunto de variables que maximice R2 y que use cinco repeticiones de validación cruzada de cinco pliegues para evitar el sobreajuste (obviamente no se debe considerar las variables Peso, Estatura ni estado nutricional –Weight, Height, EN respectivamente–).
+En conclucion de este modelo: Como se puede apreciar en los datos en primera instancia la variable "Biiliac.diameter" esta sumamente cerda del umbral de significancia (0.05), aunque se exede por muy poco, aun asi el resto de predictores estan muy por debajo del mismo umbral, por lo cual son altamente significativos, ademas de lo dicho anteriormente como se puede apreciar en "Multiple R-squared" y en "Adjusted R-squared", el modelo precido aproximadamente un 97% de la variacion, por ende es un modelo sumamente preciso, y extremadamente poderoso.
+
+Ahora se realizara un modelo de regresión lineal múltiple para predecir la variable IMC, que incluya entre 10 y 20 predictores, seleccionando el conjunto de variables que maximice R2 y que use cinco repeticiones de validación cruzada de cinco pliegues para evitar el sobreajuste (obviamente no se debe considerar las variables Peso, Estatura ni estado nutricional –Weight, Height, EN respectivamente–).
 
 ```{r}
 
@@ -158,8 +158,11 @@ summary(modelo_rfe$fit)
 
 ```
 
+En conclusion: Como se puede apreciar por el resultado, hay un par de predictores que son poco significativos, por ejemplo "Elbows.diameter", pero aun teniendo en cuenta esto el modelo arroja un valor de 0.911 de "Multiple R-squared", lo cual indica que el modelo explica aproximadamente un 91% de la variacion de la variable "IMC", por ende es un modelo bastante bueno, aunque mejorable sigue siendo un buen modelo.
 
-Construir un modelo de regresión logística múltiple para la variable EN que incluya el conjunto, de entre dos y seis, predictores que entregue la mejor curva ROC y que utilice validación cruzada dejando uno fuera para evitar el sobreajuste (obviamente no se debe considerar las variables Peso, Estatura –Weight y Height respectivamente– ni IMC).
+Ahora se construira un modelo de regresión logística múltiple para la variable EN que incluya el conjunto, de entre dos y seis, predictores que entregue la mejor curva ROC y que utilice validación cruzada dejando uno fuera (obviamente no se debe considerar las variables Peso, Estatura –Weight y Height respectivamente– ni IMC).
+
+Para realizar lo dicho anteriormente se seleccionaran predictores y para esto se utiliza la funcion "regsubsets"
 
 ```{r}
 
@@ -171,11 +174,17 @@ plot(model_leaps, scale="bic")
 
 ```
 
+analizando el grafico anterior se eligieron los siguientes predictores: "Bicep.Girth", "Hip.Girth", "Age", "Forearm.Grith", ahora se procedera a construir el modelo de regresion logistica multiple y se evaluara su poder predictivo usando la curva ROC y validacion cruzada
+
 ```{r}
-formula <- as.formula(paste("EN ~", paste(mejores_predictores, collapse = " + ")))
-modelo_logistico <- glm(EN ~ Bicep.girth + Hip.girth + Waist.girth , data = datos_Prueba, family = binomial)
+modelo_logistico <- glm(EN ~ Bicep.Girth + Age  + Hip.Girth + Waist.Girth + Gender , data = datos_Prueba, family = binomial)
 summary(modelo_logistico)
 ```
+
+Con los datos obtenidos del modelo se puede apreciar que la mayoria de los predictores son significativos aunque "Hip.Girth" no es del todo significativo, pero dadas las pruebas y las iteraciones que se realizaron se descubrio que dejar dicho predictor mejoraba el modelo, ademas tambien se puede apreciar que el "AIC" del modelo es de 50.632, lo cual es una buena señal debido a que es un valor relativamente bajo.
+
+ahora se procedera a evaluar su poder predictivo usando la curva ROC y validacion cruzada
+
 ```{r}
 predicciones <- predict(modelo_logistico, type = "response")
 roc_obj <- roc(datos_Prueba$EN, predicciones)
@@ -183,11 +192,17 @@ plot(roc_obj)
 auc(roc_obj)
 ```
 
-Validación Cruzada
+Como se puede apreciar en la curva "ROC" el modelo es bastante bueno, ya que el area bajo la curva es de 0.98, lo cual indica que el modelo es bastante bueno, ademas de esto se puede apreciar que el modelo es bastante poderoso y confiable, ya que el modelo es capaz de predecir con un 98% de certeza si una persona tiene sobrepeso o no.
+
+Ahora se realizara una validacion cruzada de 100 pliegues dejando fuera un elemento en cada pliegue.
+
 ```{r}
+# Definir la fórmula
+formula <- EN ~ Bicep.Girth + Age  + Hip.Girth + Waist.Girth + Gender
 control_loocv <- trainControl(method = "LOOCV")
 modelo_loocv <- train(formula, data = datos_Prueba, method = "glm", family = binomial, trControl = control_loocv)
 print(modelo_loocv)
 
 ```
 
+Como se puede apreciar en los datos obtenidos, el modelo es bastante bueno, ya que el "Accuracy" es de 0.88, lo cual indica que el modelo es bastante bueno, ademas de esto se puede apreciar que el modelo es bastante poderoso y confiable, ya que el modelo es capaz de predecir con un 98% de certeza si una persona tiene sobrepeso o no, ademas de esto se puede apreciar que el modelo es bastante estable, ya que el "Kappa" es de 0.76, lo cual indica que el modelo es bastante estable y confiable.
